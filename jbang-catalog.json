@@ -1,0 +1,9 @@
+{
+  "catalogs": {},
+  "aliases": {
+    "banc": {
+      "script-ref": "banc.java"
+    }
+  },
+  "templates": {}
+}
