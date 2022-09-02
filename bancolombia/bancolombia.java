@@ -20,18 +20,10 @@ import picocli.CommandLine;
 import picocli.CommandLine.Command;
 import picocli.CommandLine.Parameters;
 
-@Command(name = "banc", mixinStandardHelpOptions = true, version = "banc 0.2", description = "A Bancolombia CSV mapper made with jbang", header = {
-"8 888888888o          .8.          b.             8     ,o888888o.",
-"8 8888    `88.       .888.         888o.          8    8888     `88.",
-"8 8888     `88      :88888.        Y88888o.       8 ,8 8888       `8.",
-"8 8888     ,88     . `88888.       .`Y888888o.    8 88 8888",
-"8 8888.   ,88'    .8. `88888.      8o. `Y888888o. 8 88 8888",
-"8 8888888888     .8`8. `88888.     8`Y8o. `Y88888o8 88 8888",
-"8 8888    `88.  .8' `8. `88888.    8   `Y8o. `Y8888 88 8888",
-"8 8888      88 .8'   `8. `88888.   8      `Y8o. `Y8 `8 8888       .8'",
-"8 8888    ,88'.888888888. `88888.  8         `Y8o.`    8888     ,88'",
-"8 888888888P .8'       `8. `88888. 8            `Yo     `8888888P'",
-})
+@Command(name = "banc",
+    mixinStandardHelpOptions = true,
+    version = "banc 0.1",
+    description = "A Bancolombia CSV mapper made with jbang")
 class banc implements Callable<Integer> {
 
     enum Headers {

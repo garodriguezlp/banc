@@ -1,11 +1,11 @@
 {
   "catalogs": {},
   "aliases": {
-    "banc": {
-      "script-ref": "banc.java"
+    "bancolombia": {
+      "script-ref": "bancolombia/bancolombia.java"
     },
     "poplepass": {
-      "script-ref": "peoplepass.kt"
+      "script-ref": "peoplepass/peoplepass.kt"
     }
   },
   "templates": {}

@@ -23,7 +23,7 @@ fun main(args: Array<String>): Unit = exitProcess(CommandLine(PeoplePass()).exec
 @Command(
     name = "peoplepass", version = ["peoplepass 0.1"],
     mixinStandardHelpOptions = true,
-    description = ["peoplepass made with jbang"]
+    description = ["A peoplepass TXT mapper made with jbang"]
 )
 class PeoplePass : Callable<Int> {
 

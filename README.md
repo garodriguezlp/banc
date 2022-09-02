@@ -1,6 +1,6 @@
 # banc
 
-> [jbang](jbang.dev) powered ⚡ script for mapping Bancolombia CSV files to my personal standard.
+> The repo of my [jbang](jbang.dev) powered ⚡ scripts for mapping various financial data sources to my standard.
 
 ```
 8 888888888o          .8.          b.             8     ,o888888o.
@@ -20,17 +20,21 @@
 -  Bash:
 
     ```
-    curl -Ls https://sh.jbang.dev | bash -s - banc@garodriguezlp/banc --help
+    curl -Ls https://sh.jbang.dev | bash -s - bancolombia@garodriguezlp/banc --help
     ```
 
 - Windows Powershell:
 
     ```
-    iex "& { $(iwr -useb https://ps.jbang.dev) } banc@garodriguezlp/banc --help"
+    iex "& { $(iwr -useb https://ps.jbang.dev) } bancolombia@garodriguezlp/banc --help"
     ```
 
 ## Want to install it as a Jbang app?
 
 ```
-jbang app install banc@garodriguezlp/banc
+jbang app install bancolombia@garodriguezlp/banc
+```
+
+```
+jbang app install peoplepass@garodriguezlp/banc
 ```
