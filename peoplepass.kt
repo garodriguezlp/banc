@@ -69,15 +69,10 @@ class PeoplePass : Callable<Int> {
     private fun printRecords(records: List<Record>) {
         CSVPrinter(System.out, TDF).use {
             records.forEach { record ->
-                it.printRecord(
-                    destinationDateFormat.format(record.date),
-                    record.description,
-                    record.amount
-                )
+                it.printRecord( destinationDateFormat.format(record.date), record.description, record.amount)
             }
         }
     }
 }
 
 data class Record(val date: LocalDate, val description: String, val amount: Number)
-

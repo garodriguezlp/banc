@@ -3,6 +3,9 @@
   "aliases": {
     "banc": {
       "script-ref": "banc.java"
+    },
+    "poplepass": {
+      "script-ref": "peoplepass.kt"
     }
   },
   "templates": {}
