@@ -57,12 +57,14 @@ class PeoplePass : Callable<Int> {
     private fun processRecord(record: String): Record? {
         val matcher = Regex(RECORD_REGEX).find(record)
         matcher?.let {
-            val date = LocalDate.parse(it.groupValues[1], originDateFormat)
-            val description = it.groupValues[3].trim()
-            val recordType = it.groupValues[2].trim()
-            val absAmount = amountFormat.parse(it.groupValues[4]).toDouble()
-            val amount = if (recordType == DEBIT_RECORD_TYPE) -absAmount else absAmount
-            return Record(date, description, amount)
+            val (_, rawDate, rawRecordType, rawDescription, rawAmount) = it.groupValues
+            val absAmount = amountFormat.parse(rawAmount).toDouble()
+            val amount = if (rawRecordType.trim() == DEBIT_RECORD_TYPE) -absAmount else absAmount
+            return Record(
+                date = LocalDate.parse(rawDate, originDateFormat),
+                description = rawDescription.trim(),
+                amount = amount
+            )
         }
         return null
     }
