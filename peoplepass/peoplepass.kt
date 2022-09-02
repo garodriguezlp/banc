@@ -2,6 +2,7 @@
 
 //DEPS info.picocli:picocli:4.6.3
 //DEPS org.apache.commons:commons-csv:1.9.0
+//DEPS org.jetbrains.kotlin:kotlin-stdlib:1.7.10  
 
 import org.apache.commons.csv.CSVFormat.TDF
 import org.apache.commons.csv.CSVPrinter
