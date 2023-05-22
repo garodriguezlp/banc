@@ -13,12 +13,17 @@
 //Q:CONFIG quarkus.log.category."io.quarkus".level=ERROR
 
 import io.quarkus.logging.Log;
+import java.awt.Toolkit;
+import java.awt.datatransfer.Clipboard;
+import java.awt.datatransfer.StringSelection;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.io.Reader;
+import java.io.StringWriter;
+import java.io.Writer;
 import java.nio.charset.Charset;
 import java.text.NumberFormat;
 import java.text.ParseException;
@@ -31,7 +36,9 @@ import javax.enterprise.inject.Any;
 import javax.enterprise.inject.Instance;
 import javax.inject.Inject;
 import org.apache.commons.csv.CSVFormat;
+import org.apache.commons.csv.CSVPrinter;
 import org.apache.commons.csv.CSVRecord;
+import org.jboss.logging.Logger;
 import picocli.CommandLine.ArgGroup;
 import picocli.CommandLine.Command;
 import picocli.CommandLine.Option;
@@ -73,12 +80,21 @@ public class banc implements Runnable {
     boolean peoplepass;
   }
 
+  @Option(names = {"-c", "--clipboard"},
+      negatable = true,
+      defaultValue = "true",
+      fallbackValue = "true",
+      description = "copy token to clipboard")
+  private boolean copyToClipboard = true;
+
   @Inject
   TransformationService transformationService;
 
   @Override
   public void run() {
-    transformationService.map(inputFile, financialInstitution());
+    transformationService.transform(inputFile,
+        financialInstitution(),
+        new TransformationOptions(copyToClipboard));
   }
 
   private FinancialInstitution financialInstitution() {
@@ -154,7 +170,7 @@ class BancolombiaReader implements RecordReader<BancolombiaRecord> {
       return NUMBER_FORMAT.parse(amount);
     } catch (ParseException e) {
       Log.errorv(e, "Error parsing amount {0}", amount);
-      throw new RuntimeException(e);
+      throw new IllegalArgumentException("Error parsing amount " + amount);
     }
   }
 
@@ -178,12 +194,30 @@ class RecordReaderFactory {
   }
 }
 
+@ApplicationScoped
+class DefaultRecordCSVWriter implements RecordCSVWriter {
+
+  @Override
+  public void write(List<TargetRecord> records, Writer writer) throws IOException {
+    try (CSVPrinter printer = new CSVPrinter(writer, CSVFormat.TDF)) {
+      for (TargetRecord record : records) {
+        printer.printRecord(
+            record.date(),
+            record.description(),
+            record.amount(),
+            record.account()
+        );
+      }
+    }
+  }
+}
+
 // -- ------------------------------------------------------------------------------------------------------------------
 // -- Ports
 // -- ------------------------------------------------------------------------------------------------------------------
 interface TransformationService {
 
-  <T> void map(File inputFile, FinancialInstitution fInstitution);
+  <T> void transform(File inputFile, FinancialInstitution fInstitution, TransformationOptions options);
 }
 
 interface RecordReader<T> {
@@ -191,6 +225,11 @@ interface RecordReader<T> {
   boolean supports(FinancialInstitution fInstitution);
 
   List<T> read(File inputFile) throws IOException;
+}
+
+interface RecordCSVWriter {
+
+  void write(List<TargetRecord> records, Writer writer) throws IOException;
 }
 
 // -- ------------------------------------------------------------------------------------------------------------------
@@ -201,9 +240,10 @@ enum FinancialInstitution {
 }
 
 record TargetRecord(
-    LocalDate date,
+    String date,
     String description,
-    String amount) {
+    String amount,
+    String account) {
 
 }
 
@@ -221,24 +261,118 @@ record PeoplePassRecord(
 
 }
 
+record TransformationOptions(
+    boolean toClipboard
+) {
+
+}
+
+interface RecordMapper<T> {
+
+  boolean supports(FinancialInstitution fInstitution);
+
+  TargetRecord map(T t);
+
+  default String formatAmount(Number amount) {
+    return NumberFormat.getCurrencyInstance(Locale.US).format(amount);
+  }
+
+  default String formatDate(LocalDate date) {
+    return date.format(DateTimeFormatter.ofPattern("MM/dd/yyyy"));
+  }
+}
+
+
+@ApplicationScoped
+class RecordMapperFactory {
+
+  @Any
+  @Inject
+  Instance<RecordMapper<?>> recordMappers;
+
+  public <T> RecordMapper<T> mapperFor(FinancialInstitution fInstitution) {
+    return (RecordMapper<T>) recordMappers.stream()
+        .filter(reader -> reader.supports(fInstitution))
+        .findFirst()
+        .orElseThrow(() -> new IllegalArgumentException("No reader found for " + fInstitution));
+  }
+}
+
+@ApplicationScoped
+class BancolombiaRecordMapper implements RecordMapper<BancolombiaRecord> {
+
+  @Override
+  public boolean supports(FinancialInstitution fInstitution) {
+    return fInstitution == FinancialInstitution.BANCOLOMBIA;
+  }
+
+  @Override
+  public TargetRecord map(BancolombiaRecord bancolombiaRecord) {
+    return new TargetRecord(
+        formatDate(bancolombiaRecord.date()),
+        bancolombiaRecord.description(),
+        formatAmount(bancolombiaRecord.amount()),
+        "Bancolombia"
+    );
+  }
+
+}
+
 // -- ------------------------------------------------------------------------------------------------------------------
 // -- Application: Use Cases
 // -- ------------------------------------------------------------------------------------------------------------------
 @ApplicationScoped
 class TransformationServiceImpl implements TransformationService {
 
+  private static final Logger LOGGER = Logger.getLogger(TransformationServiceImpl.class);
+
   @Inject
   RecordReaderFactory recordReaderFactory;
 
+  @Inject
+  RecordMapperFactory recordMapperFactory;
+
+  @Inject
+  RecordCSVWriter recordCSVWriter;
+
+  @Inject
+  ClipboardService clipboardService;
+
   @Override
-  public <T> void map(File inputFile, FinancialInstitution fInstitution) {
-    Log.infov("Transforming file {0} for {1}", inputFile, fInstitution);
+  public <T> void transform(File inputFile, FinancialInstitution fInstitution, TransformationOptions options) {
+    LOGGER.infov("Transforming file {0} for {1}", inputFile, fInstitution);
     try {
-      RecordReader<T> reader = recordReaderFactory.readerFor(fInstitution);
-      List<T> records = reader.read(inputFile);
-      records.forEach(System.out::println);
-    }catch (Exception e) {
-      Log.errorv(e, "Error transforming file {0}", inputFile);
+      List<TargetRecord> targetRecords = toTargetRecords(inputFile, fInstitution);
+      StringWriter writer = new StringWriter();
+      recordCSVWriter.write(targetRecords, writer);
+      System.out.println(writer);
+
+      if (options.toClipboard()) {
+        clipboardService.setContent(writer.toString());
+      }
+
+    } catch (Exception e) {
+      LOGGER.errorv(e, "Error transforming file {0}", inputFile);
     }
+  }
+
+  private <T> List<TargetRecord> toTargetRecords(File inputFile, FinancialInstitution fInstitution) throws IOException {
+    RecordReader<T> reader = recordReaderFactory.readerFor(fInstitution);
+    RecordMapper<T> mapper = recordMapperFactory.mapperFor(fInstitution);
+    List<T> records = reader.read(inputFile);
+    List<TargetRecord> targetRecords = records.stream()
+        .map(mapper::map)
+        .toList();
+    return targetRecords;
+  }
+}
+
+@ApplicationScoped
+class ClipboardService {
+
+  public void setContent(String data) {
+    Clipboard clipboard = Toolkit.getDefaultToolkit().getSystemClipboard();
+    StringSelection selection = new StringSelection(data);
+    clipboard.setContents(selection, null);
   }
 }
