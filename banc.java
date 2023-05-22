@@ -15,13 +15,17 @@
 import io.quarkus.logging.Log;
 import java.io.File;
 import java.io.FileInputStream;
+import java.io.IOException;
+import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.io.Reader;
 import java.nio.charset.Charset;
+import java.text.NumberFormat;
+import java.text.ParseException;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
 import java.util.List;
-import java.util.stream.Collectors;
+import java.util.Locale;
 import javax.enterprise.context.ApplicationScoped;
 import javax.enterprise.inject.Any;
 import javax.enterprise.inject.Instance;
@@ -61,6 +65,7 @@ public class banc implements Runnable {
   Institution institution;
 
   static class Institution {
+
     @Option(names = {"--bancolombia", "-b"}, required = true)
     boolean bancolombia;
 
@@ -96,6 +101,7 @@ class BancolombiaReader implements RecordReader<BancolombiaRecord> {
 
   private static final Charset WINDOWS_1252 = Charset.forName("windows-1252");
   private static final DateTimeFormatter DATE_TIME_FORMATTER = DateTimeFormatter.ofPattern("yyyy/MM/dd");
+  private static final NumberFormat NUMBER_FORMAT = NumberFormat.getInstance(Locale.US);
 
   enum Headers {
     DATE, DOCUMENT, OFFICE, DESCRIPTION, REFERENCE, VALUE
@@ -107,34 +113,53 @@ class BancolombiaReader implements RecordReader<BancolombiaRecord> {
   }
 
   @Override
-  public List<BancolombiaRecord> read(File inputFile) {
+  public List<BancolombiaRecord> read(File inputFile) throws IOException {
     Log.infov("Reading file {0} for {1}", inputFile, FinancialInstitution.BANCOLOMBIA);
-    return parseCvsFile(inputFile)
+    try {
+      return read(new FileInputStream(inputFile));
+    } catch (IOException e) {
+      Log.errorv(e, "Error reading file {0}", inputFile);
+      throw e;
+    }
+  }
+
+  public List<BancolombiaRecord> read(InputStream inputStream) throws IOException {
+    return parseCvsFile(inputStream)
         .stream()
         .map(this::toBancolombiaRecord)
         .toList();
   }
 
-  private List<CSVRecord> parseCvsFile(File csvFile)  {
-    try (Reader reader = new InputStreamReader(new FileInputStream(csvFile), WINDOWS_1252)) {
+  private List<CSVRecord> parseCvsFile(InputStream in) throws IOException {
+    try (Reader reader = new InputStreamReader(in, WINDOWS_1252)) {
       return CSVFormat.TDF
           .withHeader(Headers.class)
           .withSkipHeaderRecord()
           .withAllowMissingColumnNames()
           .parse(reader)
           .getRecords();
-    } catch (Exception e) {
-      Log.errorv(e, "Error reading file {0}", csvFile);
-      throw new RuntimeException(e);
     }
   }
 
   private BancolombiaRecord toBancolombiaRecord(CSVRecord csvRecord) {
     return new BancolombiaRecord(
-        LocalDate.parse(csvRecord.get(Headers.DATE), DATE_TIME_FORMATTER),
+        parseDate(csvRecord.get(Headers.DATE)),
         csvRecord.get(Headers.DESCRIPTION),
-        csvRecord.get(Headers.VALUE)
+        parse(csvRecord.get(Headers.VALUE))
     );
+  }
+
+  private static Number parse(String amount) {
+    try {
+      return NUMBER_FORMAT.parse(amount);
+    } catch (ParseException e) {
+      Log.errorv(e, "Error parsing amount {0}", amount);
+      throw new RuntimeException(e);
+    }
+  }
+
+  private static LocalDate parseDate(String date) {
+    return LocalDate.parse(date, DATE_TIME_FORMATTER);
   }
 }
 
@@ -156,13 +181,16 @@ class RecordReaderFactory {
 // -- ------------------------------------------------------------------------------------------------------------------
 // -- Ports
 // -- ------------------------------------------------------------------------------------------------------------------
-interface TransformationService{
+interface TransformationService {
+
   <T> void map(File inputFile, FinancialInstitution fInstitution);
 }
 
 interface RecordReader<T> {
+
   boolean supports(FinancialInstitution fInstitution);
-  List<T> read(File inputFile);
+
+  List<T> read(File inputFile) throws IOException;
 }
 
 // -- ------------------------------------------------------------------------------------------------------------------
@@ -176,18 +204,21 @@ record TargetRecord(
     LocalDate date,
     String description,
     String amount) {
+
 }
 
 record BancolombiaRecord(
     LocalDate date,
     String description,
-    String amount) {
+    Number amount) {
+
 }
 
 record PeoplePassRecord(
     LocalDate date,
     String description,
     String amount) {
+
 }
 
 // -- ------------------------------------------------------------------------------------------------------------------
@@ -202,9 +233,12 @@ class TransformationServiceImpl implements TransformationService {
   @Override
   public <T> void map(File inputFile, FinancialInstitution fInstitution) {
     Log.infov("Transforming file {0} for {1}", inputFile, fInstitution);
-
-    RecordReader<T> reader = recordReaderFactory.readerFor(fInstitution);
-    List<T> records = reader.read(inputFile);
-    records.forEach(System.out::println);
+    try {
+      RecordReader<T> reader = recordReaderFactory.readerFor(fInstitution);
+      List<T> records = reader.read(inputFile);
+      records.forEach(System.out::println);
+    }catch (Exception e) {
+      Log.errorv(e, "Error transforming file {0}", inputFile);
+    }
   }
 }
