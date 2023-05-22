@@ -2,11 +2,9 @@
 
 //JAVA 17+
 
-// Update the Quarkus version to what you want here or run jbang with
-// `-Dquarkus.version=<version>` to override it.
-//DEPS io.quarkus:quarkus-bom:${quarkus.version:2.11.2.Final}@pom
+//DEPS io.quarkus:quarkus-bom:2.16.7.Final@pom
 //DEPS io.quarkus:quarkus-picocli
-//DEPS org.apache.commons:commons-csv:1.8
+//DEPS org.apache.commons:commons-csv:1.10.0
 
 //Q:CONFIG quarkus.banner.enabled=false
 //Q:CONFIG quarkus.log.level=INFO

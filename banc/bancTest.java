@@ -8,8 +8,10 @@
 //DEPS commons-io:commons-io:2.12.0
 //DEPS org.mockito:mockito-core:3.11.2
 //DEPS org.mockito:mockito-junit-jupiter:5.3.1
+//DEPS io.quarkus:quarkus-junit5
 
 //SOURCES banc.java
+
 //FILES bancolombia.csv
 
 import static java.lang.System.out;
@@ -143,7 +145,6 @@ public class bancTest {
 
     @InjectMocks
     private TransformationServiceImpl transformationService;
-
 
     @Test
     void testTransform() throws IOException {
