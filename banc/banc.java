@@ -338,7 +338,7 @@ class TransformationServiceImpl implements TransformationService {
 
   @Override
   public <T> void transform(File inputFile, FinancialInstitution fInstitution, TransformationOptions options) {
-    LOGGER.infov("Transforming file {0} for {1}", inputFile, fInstitution);
+    LOGGER.infov("Transforming {0} file {1}", fInstitution, inputFile);
     try {
       List<TargetRecord> targetRecords = toTargetRecords(inputFile, fInstitution);
       StringWriter writer = new StringWriter();
@@ -358,10 +358,9 @@ class TransformationServiceImpl implements TransformationService {
     RecordReader<T> reader = recordReaderFactory.readerFor(fInstitution);
     RecordMapper<T> mapper = recordMapperFactory.mapperFor(fInstitution);
     List<T> records = reader.read(inputFile);
-    List<TargetRecord> targetRecords = records.stream()
+    return records.stream()
         .map(mapper::map)
         .toList();
-    return targetRecords;
   }
 }
 
