@@ -73,15 +73,34 @@ public class bancTest {
       final var records = new BancolombiaReader().read(stream);
 
       assertThat(records)
-          .hasSize(6)
-          .extracting(OriginRecord::date, OriginRecord::description, OriginRecord::amount)
-          .contains(
-              tuple(LocalDate.of(2021, 1, 16), "COMPRA PTO.VTA", -327900L),
-              tuple(LocalDate.of(2021, 1, 15), "ABONO INTERESES AHORROS", 2.09),
-              tuple(LocalDate.of(2021, 1, 14), "COMPRA INTL  PAYPAL  NY TIMES", -3652.27),
-              tuple(LocalDate.of(2021, 1, 14), "ABONO INTERESES AHORROS", 2.1),
-              tuple(LocalDate.of(2021, 1, 12), "PAGO PSE PAYU COLOMBIA S.A.S", -42500L),
-              tuple(LocalDate.of(2021, 1, 11), "COMPRA EN  RAPPI PAY", -25000L));
+          .usingRecursiveComparison()
+          .isEqualTo(List.of(
+              OriginRecord.of(2021, 1, 16, "COMPRA PTO.VTA", -327900.00, "Bancolombia"),
+              OriginRecord.of(2021, 1, 15, "ABONO INTERESES AHORROS", 2.09, "Bancolombia"),
+              OriginRecord.of(2021, 1, 14, "COMPRA INTL  PAYPAL  NY TIMES", -3652.27, "Bancolombia"),
+              OriginRecord.of(2021, 1, 14, "ABONO INTERESES AHORROS", 2.1, "Bancolombia"),
+              OriginRecord.of(2021, 1, 12, "PAGO PSE PAYU COLOMBIA S.A.S", -42500.00, "Bancolombia"),
+              OriginRecord.of(2021, 1, 11, "COMPRA EN  RAPPI PAY", -25000.00, "Bancolombia")));
+    }
+  }
+
+  @Nested
+  class PeoplepassReaderTest {
+
+    @Test
+    void testRead() throws IOException {
+      final var stream = getClass().getResourceAsStream("peoplepass.csv");
+      final var records = new PeoplepassReader().read(stream);
+
+      assertThat(records)
+          .usingRecursiveComparison()
+          .isEqualTo(List.of(
+              OriginRecord.of(2023, 6, 2, "TIENDA D1 CALI DARK ST", -70330.00, "Peoplepass"),
+              OriginRecord.of(2023, 6, 2, "SUPERTIENDAS CANAVERAL", -379991.00, "Peoplepass"),
+              OriginRecord.of(2023, 5, 28, "ALIMENTOS ARBEL", -75350.00, "Peoplepass"),
+              OriginRecord.of(2023, 5, 28, "GOMEZ RAMIREZ OLGA LUZ", -34700.00, "Peoplepass"),
+              OriginRecord.of(2023, 5, 27, "LA TRATTORINA 1", -135371.00, "Peoplepass")
+          ));
     }
   }
 
@@ -90,11 +109,12 @@ public class bancTest {
 
     @Test
     void testMap() {
-      OriginRecord originRecord = new OriginRecord(
-          LocalDate.of(2021, 1, 16),
+      OriginRecord originRecord = OriginRecord.of(2021,
+          1,
+          16,
           "COMPRA PTO.VTA",
-          -327900L
-      );
+          -327900.00,
+          "Bancolombia");
       final var targetRecord = new RecordMapper().map(originRecord);
 
       assertThat(targetRecord)
@@ -147,11 +167,7 @@ public class bancTest {
     @Test
     void testTransform() throws IOException {
       File inputFile = new File("input.csv");
-      OriginRecord originRecord = new OriginRecord(
-          LocalDate.of(2021, 1, 16),
-          "COMPRA PTO.VTA",
-          -327900L
-      );
+      OriginRecord originRecord = OriginRecord.of(2021, 1, 16, "COMPRA PTO.VTA", -327900.00, "Bancolombia");
       List<OriginRecord> records = List.of(originRecord);
       TargetRecord targetRecord = new TargetRecord(
           "01/16/2021",

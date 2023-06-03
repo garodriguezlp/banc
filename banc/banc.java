@@ -10,6 +10,8 @@
 //Q:CONFIG quarkus.log.level=INFO
 //Q:CONFIG quarkus.log.category."io.quarkus".level=ERROR
 
+import static org.apache.commons.csv.CSVFormat.TDF;
+
 import io.quarkus.logging.Log;
 import java.awt.Toolkit;
 import java.awt.datatransfer.Clipboard;
@@ -22,7 +24,10 @@ import java.io.InputStreamReader;
 import java.io.Reader;
 import java.io.StringWriter;
 import java.io.Writer;
+import java.math.BigDecimal;
 import java.nio.charset.Charset;
+import java.text.DecimalFormat;
+import java.text.DecimalFormatSymbols;
 import java.text.NumberFormat;
 import java.text.ParseException;
 import java.time.LocalDate;
@@ -140,37 +145,116 @@ class BancolombiaReader implements RecordReader {
   public List<OriginRecord> read(InputStream inputStream) throws IOException {
     return parseCvsFile(inputStream)
         .stream()
-        .map(this::toBancolombiaRecord)
+        .map(this::toRecord)
         .toList();
   }
 
   private List<CSVRecord> parseCvsFile(InputStream in) throws IOException {
     try (Reader reader = new InputStreamReader(in, WINDOWS_1252)) {
-      return CSVFormat.TDF
-          .withHeader(Headers.class)
-          .withSkipHeaderRecord()
-          .withAllowMissingColumnNames()
+      return CSVFormat.Builder.create(TDF)
+          .setHeader(Headers.class)
+          .setSkipHeaderRecord(true)
+          .setAllowMissingColumnNames(true)
+          .build()
           .parse(reader)
           .getRecords();
     }
   }
 
-  private OriginRecord toBancolombiaRecord(CSVRecord csvRecord) {
+  private OriginRecord toRecord(CSVRecord csvRecord) {
     return new OriginRecord(
         parseDate(csvRecord.get(Headers.DATE)),
         csvRecord.get(Headers.DESCRIPTION),
-        parse(csvRecord.get(Headers.VALUE))
-    );
+        parseAmount(csvRecord.get(Headers.VALUE)),
+        FinancialInstitution.BANCOLOMBIA.accountName());
   }
 
-  private static Number parse(String amount) {
+  private static Double parseAmount(String amount) {
     try {
-      return NUMBER_FORMAT.parse(amount);
+      return NUMBER_FORMAT.parse(amount).doubleValue();
     } catch (ParseException e) {
       Log.errorv(e, "Error parsing amount {0}", amount);
       throw new IllegalArgumentException("Error parsing amount " + amount);
     }
   }
+
+  private static LocalDate parseDate(String date) {
+    return LocalDate.parse(date, DATE_TIME_FORMATTER);
+  }
+}
+
+@ApplicationScoped
+class PeoplepassReader implements RecordReader {
+
+  private static final DateTimeFormatter DATE_TIME_FORMATTER = DateTimeFormatter.ofPattern("dd/MM/yyyy");
+  private static final DecimalFormat NUMBER_FORMAT = buildDecimalFormat();
+
+  enum Headers {
+    CARD, DATE, TIME, CONCEPT, COMMERCE, VALUE, STATUS
+  }
+
+  @Override
+  public boolean supports(FinancialInstitution fInstitution) {
+    return fInstitution == FinancialInstitution.PEOPLEPASS;
+  }
+
+  @Override
+  public List<OriginRecord> read(File inputFile) throws IOException {
+    Log.infov("Reading file {0} for {1}", inputFile, FinancialInstitution.PEOPLEPASS);
+    try {
+      return read(new FileInputStream(inputFile));
+    } catch (IOException e) {
+      Log.errorv(e, "Error reading file {0}", inputFile);
+      throw e;
+    }
+  }
+
+  public List<OriginRecord> read(InputStream inputStream) throws IOException {
+    return parseCvsFile(inputStream)
+        .stream()
+        .map(this::toRecord)
+        .toList();
+  }
+
+  private List<CSVRecord> parseCvsFile(InputStream in) throws IOException {
+    try (Reader reader = new InputStreamReader(in)) {
+      return CSVFormat.Builder.create(TDF)
+          .setHeader(Headers.class)
+          .setSkipHeaderRecord(true)
+          .setAllowMissingColumnNames(true)
+          .build()
+          .parse(reader)
+          .getRecords();
+    }
+  }
+
+  private OriginRecord toRecord(CSVRecord csvRecord) {
+    return new OriginRecord(
+        parseDate(csvRecord.get(Headers.DATE)),
+        csvRecord.get(Headers.COMMERCE),
+        parseAmount(csvRecord.get(Headers.VALUE)),
+        FinancialInstitution.PEOPLEPASS.accountName());
+  }
+
+  private static Double parseAmount(String amount) {
+    try {
+      return -NUMBER_FORMAT.parse(amount).doubleValue();
+    } catch (ParseException e) {
+      Log.errorv(e, "Error parsing amount {0}", amount);
+      throw new IllegalArgumentException("Error parsing amount " + amount);
+    }
+  }
+
+  public static DecimalFormat buildDecimalFormat() {
+    DecimalFormatSymbols symbols = new DecimalFormatSymbols(Locale.US);
+    symbols.setDecimalSeparator(',');
+    symbols.setGroupingSeparator('.');
+    symbols.setCurrencySymbol("$ ");
+    DecimalFormat decimalFormat = new DecimalFormat("$ #,##0.00", symbols);
+    decimalFormat.setParseBigDecimal(true);
+    return decimalFormat;
+  }
+
 
   private static LocalDate parseDate(String date) {
     return LocalDate.parse(date, DATE_TIME_FORMATTER);
@@ -197,7 +281,7 @@ class DefaultRecordCSVWriter implements RecordCSVWriter {
 
   @Override
   public void write(List<TargetRecord> records, Writer writer) throws IOException {
-    try (CSVPrinter printer = new CSVPrinter(writer, CSVFormat.TDF)) {
+    try (CSVPrinter printer = new CSVPrinter(writer, TDF)) {
       for (TargetRecord record : records) {
         printer.printRecord(
             record.date(),
@@ -234,21 +318,44 @@ interface RecordCSVWriter {
 // -- Domain
 // -- ------------------------------------------------------------------------------------------------------------------
 enum FinancialInstitution {
-  BANCOLOMBIA, PEOPLEPASS
+  BANCOLOMBIA("Bancolombia"),
+  PEOPLEPASS("Peoplepass");
+
+  private final String accountName;
+
+  FinancialInstitution(String name) {
+    this.accountName = name;
+  }
+
+  public String accountName() {
+    return accountName;
+  }
 }
 
 record TargetRecord(
     String date,
     String description,
     String amount,
-    String account) {
+    String account
+) {
 
 }
 
 record OriginRecord(
     LocalDate date,
     String description,
-    Number amount) {
+    Double amount,
+    String source
+) {
+
+  public static OriginRecord of(int year,
+      int month,
+      int dayOfMonth,
+      String description,
+      double amount,
+      String source) {
+    return new OriginRecord(LocalDate.of(year, month, dayOfMonth), description, amount, source);
+  }
 
 }
 
