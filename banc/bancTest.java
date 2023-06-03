@@ -74,7 +74,7 @@ public class bancTest {
 
       assertThat(records)
           .hasSize(6)
-          .extracting(BancolombiaRecord::date, BancolombiaRecord::description, BancolombiaRecord::amount)
+          .extracting(OriginRecord::date, OriginRecord::description, OriginRecord::amount)
           .contains(
               tuple(LocalDate.of(2021, 1, 16), "COMPRA PTO.VTA", -327900L),
               tuple(LocalDate.of(2021, 1, 15), "ABONO INTERESES AHORROS", 2.09),
@@ -86,16 +86,16 @@ public class bancTest {
   }
 
   @Nested
-  class BancolombiaRecordMapperTest {
+  class OriginRecordMapperTest {
 
     @Test
     void testMap() {
-      BancolombiaRecord bancolombiaRecord = new BancolombiaRecord(
+      OriginRecord originRecord = new OriginRecord(
           LocalDate.of(2021, 1, 16),
           "COMPRA PTO.VTA",
           -327900L
       );
-      final var targetRecord = new BancolombiaRecordMapper().map(bancolombiaRecord);
+      final var targetRecord = new RecordMapper().map(originRecord);
 
       assertThat(targetRecord)
           .extracting(TargetRecord::date, TargetRecord::description, TargetRecord::amount, TargetRecord::account)
@@ -133,9 +133,6 @@ public class bancTest {
     private RecordReader reader;
 
     @Mock
-    private RecordMapperFactory recordMapperFactory;
-
-    @Mock
     private RecordMapper mapper;
 
     @Mock
@@ -150,12 +147,12 @@ public class bancTest {
     @Test
     void testTransform() throws IOException {
       File inputFile = new File("input.csv");
-      BancolombiaRecord bancolombiaRecord = new BancolombiaRecord(
+      OriginRecord originRecord = new OriginRecord(
           LocalDate.of(2021, 1, 16),
           "COMPRA PTO.VTA",
           -327900L
       );
-      List<BancolombiaRecord> records = List.of(bancolombiaRecord);
+      List<OriginRecord> records = List.of(originRecord);
       TargetRecord targetRecord = new TargetRecord(
           "01/16/2021",
           "COMPRA PTO.VTA",
@@ -164,9 +161,8 @@ public class bancTest {
       );
 
       when(recordReaderFactory.readerFor(FinancialInstitution.BANCOLOMBIA)).thenReturn(reader);
-      when(recordMapperFactory.mapperFor(FinancialInstitution.BANCOLOMBIA)).thenReturn(mapper);
       when(reader.read(inputFile)).thenReturn(records);
-      when(mapper.map(bancolombiaRecord)).thenReturn(targetRecord);
+      when(mapper.map(originRecord)).thenReturn(targetRecord);
 
       // Call the method to be tested
       transformationService.transform(

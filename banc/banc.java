@@ -111,7 +111,7 @@ public class banc implements Runnable {
 // -- Driven Adapters
 // -- ------------------------------------------------------------------------------------------------------------------
 @ApplicationScoped
-class BancolombiaReader implements RecordReader<BancolombiaRecord> {
+class BancolombiaReader implements RecordReader {
 
   private static final Charset WINDOWS_1252 = Charset.forName("windows-1252");
   private static final DateTimeFormatter DATE_TIME_FORMATTER = DateTimeFormatter.ofPattern("yyyy/MM/dd");
@@ -127,7 +127,7 @@ class BancolombiaReader implements RecordReader<BancolombiaRecord> {
   }
 
   @Override
-  public List<BancolombiaRecord> read(File inputFile) throws IOException {
+  public List<OriginRecord> read(File inputFile) throws IOException {
     Log.infov("Reading file {0} for {1}", inputFile, FinancialInstitution.BANCOLOMBIA);
     try {
       return read(new FileInputStream(inputFile));
@@ -137,7 +137,7 @@ class BancolombiaReader implements RecordReader<BancolombiaRecord> {
     }
   }
 
-  public List<BancolombiaRecord> read(InputStream inputStream) throws IOException {
+  public List<OriginRecord> read(InputStream inputStream) throws IOException {
     return parseCvsFile(inputStream)
         .stream()
         .map(this::toBancolombiaRecord)
@@ -155,8 +155,8 @@ class BancolombiaReader implements RecordReader<BancolombiaRecord> {
     }
   }
 
-  private BancolombiaRecord toBancolombiaRecord(CSVRecord csvRecord) {
-    return new BancolombiaRecord(
+  private OriginRecord toBancolombiaRecord(CSVRecord csvRecord) {
+    return new OriginRecord(
         parseDate(csvRecord.get(Headers.DATE)),
         csvRecord.get(Headers.DESCRIPTION),
         parse(csvRecord.get(Headers.VALUE))
@@ -182,10 +182,10 @@ class RecordReaderFactory {
 
   @Any
   @Inject
-  Instance<RecordReader<?>> recordReaders;
+  Instance<RecordReader> recordReaders;
 
-  public <T> RecordReader<T> readerFor(FinancialInstitution fInstitution) {
-    return (RecordReader<T>) recordReaders.stream()
+  public RecordReader readerFor(FinancialInstitution fInstitution) {
+    return recordReaders.stream()
         .filter(reader -> reader.supports(fInstitution))
         .findFirst()
         .orElseThrow(() -> new IllegalArgumentException("No reader found for " + fInstitution));
@@ -218,11 +218,11 @@ interface TransformationService {
   <T> void transform(File inputFile, FinancialInstitution fInstitution, TransformationOptions options);
 }
 
-interface RecordReader<T> {
+interface RecordReader {
 
   boolean supports(FinancialInstitution fInstitution);
 
-  List<T> read(File inputFile) throws IOException;
+  List<OriginRecord> read(File inputFile) throws IOException;
 }
 
 interface RecordCSVWriter {
@@ -245,17 +245,10 @@ record TargetRecord(
 
 }
 
-record BancolombiaRecord(
+record OriginRecord(
     LocalDate date,
     String description,
     Number amount) {
-
-}
-
-record PeoplePassRecord(
-    LocalDate date,
-    String description,
-    String amount) {
 
 }
 
@@ -265,53 +258,24 @@ record TransformationOptions(
 
 }
 
-interface RecordMapper<T> {
+@ApplicationScoped
+class RecordMapper {
 
-  boolean supports(FinancialInstitution fInstitution);
+  public TargetRecord map(OriginRecord originRecord) {
+    return new TargetRecord(
+        formatDate(originRecord.date()),
+        originRecord.description(),
+        formatAmount(originRecord.amount()),
+        "Bancolombia"
+    );
+  }
 
-  TargetRecord map(T t);
-
-  default String formatAmount(Number amount) {
+  private String formatAmount(Number amount) {
     return NumberFormat.getCurrencyInstance(Locale.US).format(amount);
   }
 
-  default String formatDate(LocalDate date) {
+  private String formatDate(LocalDate date) {
     return date.format(DateTimeFormatter.ofPattern("MM/dd/yyyy"));
-  }
-}
-
-
-@ApplicationScoped
-class RecordMapperFactory {
-
-  @Any
-  @Inject
-  Instance<RecordMapper<?>> recordMappers;
-
-  public <T> RecordMapper<T> mapperFor(FinancialInstitution fInstitution) {
-    return (RecordMapper<T>) recordMappers.stream()
-        .filter(reader -> reader.supports(fInstitution))
-        .findFirst()
-        .orElseThrow(() -> new IllegalArgumentException("No reader found for " + fInstitution));
-  }
-}
-
-@ApplicationScoped
-class BancolombiaRecordMapper implements RecordMapper<BancolombiaRecord> {
-
-  @Override
-  public boolean supports(FinancialInstitution fInstitution) {
-    return fInstitution == FinancialInstitution.BANCOLOMBIA;
-  }
-
-  @Override
-  public TargetRecord map(BancolombiaRecord bancolombiaRecord) {
-    return new TargetRecord(
-        formatDate(bancolombiaRecord.date()),
-        bancolombiaRecord.description(),
-        formatAmount(bancolombiaRecord.amount()),
-        "Bancolombia"
-    );
   }
 
 }
@@ -328,7 +292,7 @@ class TransformationServiceImpl implements TransformationService {
   RecordReaderFactory recordReaderFactory;
 
   @Inject
-  RecordMapperFactory recordMapperFactory;
+  RecordMapper mapper;
 
   @Inject
   RecordCSVWriter recordCSVWriter;
@@ -355,9 +319,8 @@ class TransformationServiceImpl implements TransformationService {
   }
 
   private <T> List<TargetRecord> toTargetRecords(File inputFile, FinancialInstitution fInstitution) throws IOException {
-    RecordReader<T> reader = recordReaderFactory.readerFor(fInstitution);
-    RecordMapper<T> mapper = recordMapperFactory.mapperFor(fInstitution);
-    List<T> records = reader.read(inputFile);
+    RecordReader reader = recordReaderFactory.readerFor(fInstitution);
+    List<OriginRecord> records = reader.read(inputFile);
     return records.stream()
         .map(mapper::map)
         .toList();
