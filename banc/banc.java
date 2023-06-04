@@ -373,7 +373,7 @@ class RecordMapper {
         formatDate(originRecord.date()),
         originRecord.description(),
         formatAmount(originRecord.amount()),
-        "Bancolombia"
+        originRecord.source()
     );
   }
 
