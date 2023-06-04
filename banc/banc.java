@@ -319,7 +319,7 @@ interface RecordCSVWriter {
 // -- ------------------------------------------------------------------------------------------------------------------
 enum FinancialInstitution {
   BANCOLOMBIA("Bancolombia"),
-  PEOPLEPASS("Peoplepass");
+  PEOPLEPASS("PeoplePass");
 
   private final String accountName;
 
