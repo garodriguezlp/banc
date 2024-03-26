@@ -24,16 +24,16 @@ repository for reference.
 
 To use `banc`, execute one of the following commands in the tool's directory, depending on your data source:
 
-- For Peoplepass data:
+- For [Peoplepass](https://peoplepass.com.co/) data:
 
   ```bash
-  > banc -p peoplepass.csv
+  banc -p peoplepass.csv
   ```
 
-- For `banc`olombia data:
+- For [Bancolombia](https://www.bancolombia.com/personas) data:
 
   ```bash
-  > banc -b bancolombia.csv
+  banc -b bancolombia.csv
   ```
 
 The tool automatically processes the data and places the output in the clipboard.
@@ -43,7 +43,7 @@ The tool automatically processes the data and places the output in the clipboard
 Ensure JBang is installed on your system, then install `banc` with:
 
 ```bash
-> jbang app install banc@garodriguezlp
+jbang app install banc@garodriguezlp
 ```
 
 This command installs `banc`, making it ready for use. For more details, including additional commands, refer to the repository
