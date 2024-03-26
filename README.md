@@ -59,13 +59,13 @@ If you want to try `banc` without installing it or having JBang, you can run it 
 - **On Bash (Linux/macOS):**
 
   ```bash
-  curl -Ls https://sh.jbang.dev | bash -s - bancolombia@garodriguezlp/banc --help
+  curl -Ls https://sh.jbang.dev | bash -s - banc@garodriguezlp --help
   ```
 
 - **On Windows Powershell:**
 
   ```powershell
-  iex "& { $(iwr -useb https://ps.jbang.dev) } bancolombia@garodriguezlp/banc --help"
+  iex "& { $(iwr -useb https://ps.jbang.dev) } banc@garodriguezlp --help"
   ```
 
 These commands will download and execute `banc` directly, allowing you to use the `--help` option to learn more about how to use the
