@@ -1,8 +1,6 @@
 # banc
 
-> The repo of my [jbang](jbang.dev) powered ⚡ scripts for mapping various financial data sources to my standard.
-
-```
+```txt
 8 888888888o          .8.          b.             8     ,o888888o.
 8 8888    `88.       .888.         888o.          8    8888     `88.
 8 8888     `88      :88888.        Y88888o.       8 ,8 8888       `8.
@@ -15,26 +13,60 @@
 8 888888888P .8'       `8. `88888. 8            `Yo     `8888888P'
 ```
 
-## Want to give it a try?
+## What is `banc`?
 
--  Bash:
+`banc` is a CLI tool built with Java and JBang for transforming financial data from various institutions into a standardized format
+for spreadsheet analysis. It processes data from CSV files or table formats, outputting the transformed data to the clipboard for
+easy use. Sample files like [`peoplepass.csv`](./peoplepass.csv) and [`bancolombia.csv`](./bancolombia.csv) are provided in the
+repository for reference.
 
-    ```
-    curl -Ls https://sh.jbang.dev | bash -s - bancolombia@garodriguezlp/banc --help
-    ```
+## How Does the `banc` Tool Work?
 
-- Windows Powershell:
+To use `banc`, execute one of the following commands in the tool's directory, depending on your data source:
 
-    ```
-    iex "& { $(iwr -useb https://ps.jbang.dev) } bancolombia@garodriguezlp/banc --help"
-    ```
+- For Peoplepass data:
 
-## Want to install it as a Jbang app?
+  ```bash
+  > banc -p peoplepass.csv
+  ```
 
+- For `banc`olombia data:
+
+  ```bash
+  > banc -b bancolombia.csv
+  ```
+
+The tool automatically processes the data and places the output in the clipboard.
+
+## How to Install `banc`
+
+Ensure JBang is installed on your system, then install `banc` with:
+
+```bash
+> jbang app install banc@garodriguezlp
 ```
-jbang app install bancolombia@garodriguezlp/banc
-```
 
-```
-jbang app install peoplepass@garodriguezlp/banc
-```
+This command installs `banc`, making it ready for use. For more details, including additional commands, refer to the repository
+documentation or run `banc --help`.
+
+Before using `banc`, ensure you have the necessary data files, such as `peoplepass.csv` or `bancolombia.csv`. Samples are available
+in the repository.
+
+## Try `banc` Without Installing
+
+If you want to try `banc` without installing it or having JBang, you can run it directly using the following one-liner scripts:
+
+- **On Bash (Linux/macOS):**
+
+  ```bash
+  curl -Ls https://sh.jbang.dev | bash -s - bancolombia@garodriguezlp/banc --help
+  ```
+
+- **On Windows Powershell:**
+
+  ```powershell
+  iex "& { $(iwr -useb https://ps.jbang.dev) } bancolombia@garodriguezlp/banc --help"
+  ```
+
+These commands will download and execute `banc` directly, allowing you to use the `--help` option to learn more about how to use the
+tool.
